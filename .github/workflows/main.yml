@@ -1,1 +1,50 @@
+name: Build Animated Runner APK
 
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'main.yml'
+      - 'chhota_runner-5.html'
+      - 'AnimatedRunnerAndroid_project.zip'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Get repository files
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Extract Android project
+        run: |
+          unzip -q AnimatedRunnerAndroid_project.zip -d android_project
+          GRADLEW=$(find android_project -name gradlew -type f | head -n 1)
+          if [ -z "$GRADLEW" ]; then
+            echo "Gradle wrapper not found"
+            exit 1
+          fi
+          echo "PROJECT_DIR=$(dirname "$GRADLEW")" >> "$GITHUB_ENV"
+
+      - name: Add game HTML
+        run: |
+          mkdir -p "$PROJECT_DIR/app/src/main/assets"
+          cp chhota_runner-5.html "$PROJECT_DIR/app/src/main/assets/index.html"
+
+      - name: Build APK
+        run: |
+          cd "$PROJECT_DIR"
+          chmod +x gradlew
+          ./gradlew assembleDebug
+
+      - name: Save APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Animated-Runner-APK
+          path: android_project/**/build/outputs/apk/debug/*.apk
