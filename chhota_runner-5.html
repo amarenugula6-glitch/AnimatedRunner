@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chhota Runner — Endless Run</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;background:#172554;color:#fff;font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:100vh}
+  .wrap{width:min(94vw,760px);text-align:center} h1{margin:8px 0 4px;font-size:clamp(22px,4vw,34px)} p{margin:4px 0 12px;color:#dbeafe}
+  canvas{width:100%;height:auto;display:block;border:3px solid #fff;border-radius:16px;background:#9de7ff;touch-action:manipulation}
+  .row{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin:12px}
+  button{border:0;border-radius:999px;padding:12px 20px;font-weight:700;font-size:16px;background:#fbbf24;color:#422006;cursor:pointer}
+  .hint{font-size:13px;color:#bfdbfe}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>🏃 Chhota Runner</h1>
+  <p>दौड़ो, कूदो और कॉइन्स इकट्ठा करो!</p>
+  <canvas id="game" width="720" height="360" aria-label="Endless runner game"></canvas>
+  <div class="row"><button id="start">शुरू / फिर से खेलें</button><button id="jump">कूदो ⬆</button></div>
+  <div class="hint">कंट्रोल: स्क्रीन/स्पेस/↑ दबाकर कूदें। मोबाइल पर गेम में टैप भी कर सकते हैं।</div>
+</div>
+<script>
+const canvas=document.querySelector('#game'), ctx=canvas.getContext('2d');
+const startBtn=document.querySelector('#start'), jumpBtn=document.querySelector('#jump');
+const W=canvas.width,H=canvas.height, ground=300;
+let player, obstacles, coins, score, speed, frame, running, over, best=0;
+function reset(){
+  player={x:105,y:ground-44,w:34,h:44,vy:0,onGround:true};
+  obstacles=[];coins=[];score=0;speed=4;frame=0;running=true;over=false;
+}
+function jump(){if(!running){if(over)reset();else reset()} if(player.onGround){player.vy=-12.5;player.onGround=false}}
+function rect(x,y,w,h,color){ctx.fillStyle=color;ctx.fillRect(x,y,w,h)}
+function circle(x,y,r,color){ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);ctx.fill()}
+function draw(){
+  // sky and scenery
+  rect(0,0,W,H,'#9de7ff');
+  circle(610,65,28,'#ffe066');
+  ctx.fillStyle='#75c98b';ctx.beginPath();ctx.moveTo(0,245);ctx.quadraticCurveTo(150,145,310,245);ctx.quadraticCurveTo(480,150,720,235);ctx.lineTo(720,300);ctx.lineTo(0,300);ctx.fill();
+  rect(0,ground,W,H-ground,'#65b85d');
+  rect(0,ground+8,W,5,'#438c45');
+  // dotted ground
+  ctx.fillStyle='#d7f5a2';for(let i=0;i<18;i++){let x=(i*55-(frame*speed)%55);rect(x,ground+28,22,4,'#d7f5a2')}
+  // player cartoon
+  circle(player.x+17,player.y+12,14,'#ffb36b');
+  circle(player.x+12,player.y+10,2.5,'#263238');circle(player.x+22,player.y+10,2.5,'#263238');
+  ctx.strokeStyle='#263238';ctx.lineWidth=2;ctx.beginPath();ctx.arc(player.x+17,player.y+15,5,0.15,Math.PI-0.15);ctx.stroke();
+  rect(player.x+5,player.y+26,24,18,'#ef476f');
+  rect(player.x+7,player.y+42,7,8,'#263238');rect(player.x+22,player.y+42,7,8,'#263238');
+  // obstacles
+  obstacles.forEach(o=>{ctx.fillStyle='#9b5b32';ctx.beginPath();ctx.roundRect(o.x,o.y,o.w,o.h,7);ctx.fill();rect(o.x+5,o.y+5,o.w-10,5,'#c88954')});
+  coins.forEach(c=>{circle(c.x,c.y,10,'#ffcc33');circle(c.x,c.y,6,'#fff1a6')});
+  ctx.fillStyle='#17324d';ctx.font='bold 22px system-ui';ctx.fillText('स्कोर: '+Math.floor(score),20,34);
+  ctx.font='bold 15px system-ui';ctx.fillText('रिकॉर्ड: '+best,20,58);
+  if(!running){ctx.fillStyle='rgba(10,25,45,.55)';ctx.fillRect(0,0,W,H);ctx.textAlign='center';ctx.fillStyle='white';ctx.font='bold 34px system-ui';ctx.fillText(over?'गेम ओवर!':'तैयार?',W/2,H/2-8);ctx.font='18px system-ui';ctx.fillText(over?'फिर से खेलने के लिए बटन दबाएँ':'शुरू करने के लिए बटन दबाएँ',W/2,H/2+28);ctx.textAlign='left'}
+}
+function update(){
+ if(running){
+  frame++;score+=.12;speed=4+Math.min(score/90,5);
+  player.vy+=.62;player.y+=player.vy;
+  if(player.y+player.h>=ground){player.y=ground-player.h;player.vy=0;player.onGround=true}
+  if(frame%95===0)obstacles.push({x:W+20,y:ground-30,w:25+Math.random()*15,h:30});
+  if(frame%125===0)coins.push({x:W+20,y:ground-75-Math.random()*55});
+  obstacles.forEach(o=>o.x-=speed);coins.forEach(c=>c.x-=speed);
+  obstacles=obstacles.filter(o=>o.x+o.w>0);coins=coins.filter(c=>c.x>-20);
+  for(const o of obstacles){if(player.x+player.w-5>o.x&&player.x+5<o.x+o.w&&player.y+player.h-4>o.y){running=false;over=true;best=Math.max(best,Math.floor(score));}}
+  coins=coins.filter(c=>{let hit=Math.hypot(player.x+17-c.x,player.y+20-c.y)<25;if(hit)score+=10;return !hit});
+ }
+ draw();requestAnimationFrame(update);
+}
+function act(){if(!running){reset();return}jump()}
+canvas.addEventListener('pointerdown',()=>{if(running)jump()});
+jumpBtn.addEventListener('click',act);startBtn.addEventListener('click',()=>{reset()});
+window.addEventListener('keydown',e=>{if(e.code==='Space'||e.code==='ArrowUp'){e.preventDefault();if(!running){reset()}else jump()}});
+draw();requestAnimationFrame(update);
+</script>
+</body></html>
